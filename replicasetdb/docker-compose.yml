@@ -1,0 +1,57 @@
+services:
+  mongo1:
+    build:
+      context: .
+      dockerfile: mongodb-build/Dockerfile
+    image: replicasetdb-mongo:6.0.2
+    container_name: replicasetdb-mongo-1
+    command: mongod --port 27017 --replSet rs-replicasetdb --bind_ip_all --keyFile /data/mongodb-keyfile
+    ports:
+      - "27217:27017"
+    volumes:
+      - replicasetdb_mongo1_db:/data/db
+      - replicasetdb_mongo1_config:/data/configdb
+    restart: always
+
+  mongo-init:
+    image: replicasetdb-mongo:6.0.2
+    container_name: replicasetdb-init
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    network_mode: "service:mongo1"
+    command: ["/bin/bash", "/scripts/init-replica-set.sh"]
+    volumes:
+      - replicasetdb_mongo1_db:/data/db
+    restart: "no"
+
+  mongo2:
+    image: replicasetdb-mongo:6.0.2
+    container_name: replicasetdb-mongo-2
+    command: mongod --port 27017 --replSet rs-replicasetdb --bind_ip_all --keyFile /data/mongodb-keyfile
+    ports:
+      - "27218:27017"
+    volumes:
+      - replicasetdb_mongo2_db:/data/db
+      - replicasetdb_mongo2_config:/data/configdb
+    restart: always
+
+  mongo3:
+    image: replicasetdb-mongo:6.0.2
+    container_name: replicasetdb-mongo-3
+    command: mongod --port 27017 --replSet rs-replicasetdb --bind_ip_all --keyFile /data/mongodb-keyfile
+    ports:
+      - "27219:27017"
+    volumes:
+      - replicasetdb_mongo3_db:/data/db
+      - replicasetdb_mongo3_config:/data/configdb
+    restart: always
+
+volumes:
+  replicasetdb_mongo1_db:
+  replicasetdb_mongo1_config:
+  replicasetdb_mongo2_db:
+  replicasetdb_mongo2_config:
+  replicasetdb_mongo3_db:
+  replicasetdb_mongo3_config:
