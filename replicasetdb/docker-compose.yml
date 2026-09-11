@@ -8,6 +8,10 @@ services:
     command: mongod --port 27017 --replSet rs-replicasetdb --bind_ip_all --keyFile /data/mongodb-keyfile
     ports:
       - "27217:27017"
+    extra_hosts:
+      - "rs-mongo1:host-gateway"
+      - "rs-mongo2:host-gateway"
+      - "rs-mongo3:host-gateway"
     volumes:
       - replicasetdb_mongo1_db:/data/db
       - replicasetdb_mongo1_config:/data/configdb
@@ -32,6 +36,10 @@ services:
     command: mongod --port 27017 --replSet rs-replicasetdb --bind_ip_all --keyFile /data/mongodb-keyfile
     ports:
       - "27218:27017"
+    extra_hosts:
+      - "rs-mongo1:host-gateway"
+      - "rs-mongo2:host-gateway"
+      - "rs-mongo3:host-gateway"
     volumes:
       - replicasetdb_mongo2_db:/data/db
       - replicasetdb_mongo2_config:/data/configdb
@@ -43,6 +51,10 @@ services:
     command: mongod --port 27017 --replSet rs-replicasetdb --bind_ip_all --keyFile /data/mongodb-keyfile
     ports:
       - "27219:27017"
+    extra_hosts:
+      - "rs-mongo1:host-gateway"
+      - "rs-mongo2:host-gateway"
+      - "rs-mongo3:host-gateway"
     volumes:
       - replicasetdb_mongo3_db:/data/db
       - replicasetdb_mongo3_config:/data/configdb

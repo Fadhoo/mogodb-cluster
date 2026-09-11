@@ -1,9 +1,9 @@
 const result = rs.initiate({
   _id: "rs-replicasetdb",
   members: [
-    { _id: 0, host: "host.docker.internal:27217", priority: 2 },
-    { _id: 1, host: "host.docker.internal:27218", priority: 1 },
-    { _id: 2, host: "host.docker.internal:27219", priority: 1 }
+    { _id: 0, host: "rs-mongo1:27217", priority: 2 },
+    { _id: 1, host: "rs-mongo2:27218", priority: 1 },
+    { _id: 2, host: "rs-mongo3:27219", priority: 1 }
   ]
 });
 

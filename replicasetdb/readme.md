@@ -56,9 +56,9 @@ The flow is:
 {
   _id: "rs-replicasetdb",
   members: [
-    { _id: 0, host: "host.docker.internal:27217", priority: 2 },
-    { _id: 1, host: "host.docker.internal:27218", priority: 1 },
-    { _id: 2, host: "host.docker.internal:27219", priority: 1 }
+    { _id: 0, host: "rs-mongo1:27217", priority: 2 },
+    { _id: 1, host: "rs-mongo2:27218", priority: 1 },
+    { _id: 2, host: "rs-mongo3:27219", priority: 1 }
   ]
 }
 ```
@@ -78,26 +78,32 @@ db.getSiblingDB("admin").createUser({
 
 ## Connect From Host
 
+On Linux, add the replica set host aliases to `/etc/hosts` before connecting from the host machine:
+
+```bash
+sudo sh -c 'printf "\n127.0.0.1 rs-mongo1 rs-mongo2 rs-mongo3\n" >> /etc/hosts'
+```
+
 From a local app running on your host machine:
 
 ```text
-mongodb://twoo_admin:replicRviKJ297n242QFS3W@host.docker.internal:27217,host.docker.internal:27218,host.docker.internal:27219/admin?replicaSet=rs-replicasetdb&authSource=admin
+mongodb://twoo_admin:replicRviKJ297n242QFS3W@rs-mongo1:27217,rs-mongo2:27218,rs-mongo3:27219/admin?replicaSet=rs-replicasetdb&authSource=admin
 ```
 
 For an application `.env` file:
 
 ```env
-MONGODB_URL=mongodb://twoo_admin:replicRviKJ297n242QFS3W@host.docker.internal:27217,host.docker.internal:27218,host.docker.internal:27219/admin?replicaSet=rs-replicasetdb&authSource=admin
+MONGODB_URL=mongodb://twoo_admin:replicRviKJ297n242QFS3W@rs-mongo1:27217,rs-mongo2:27218,rs-mongo3:27219/admin?replicaSet=rs-replicasetdb&authSource=admin
 ```
 
-Do not use `directConnection=true` for apps that require replica set support. The replica set advertises `host.docker.internal:27217`, `host.docker.internal:27218`, and `host.docker.internal:27219`, so clients can discover all three members.
+Do not use `directConnection=true` for apps that require replica set support. The replica set advertises `rs-mongo1:27217`, `rs-mongo2:27218`, and `rs-mongo3:27219`, so clients can discover all three members.
 
 ## Connect From Docker
 
-From another Docker container, use the same advertised replica set URI:
+From another Docker container, use the same advertised replica set URI. The container must be able to resolve `rs-mongo1`, `rs-mongo2`, and `rs-mongo3`. Add the same `extra_hosts` entries used by this Compose file if the app runs in a separate Compose project.
 
 ```text
-mongodb://twoo_admin:replicRviKJ297n242QFS3W@host.docker.internal:27217,host.docker.internal:27218,host.docker.internal:27219/admin?replicaSet=rs-replicasetdb&authSource=admin
+mongodb://twoo_admin:replicRviKJ297n242QFS3W@rs-mongo1:27217,rs-mongo2:27218,rs-mongo3:27219/admin?replicaSet=rs-replicasetdb&authSource=admin
 ```
 
 You can also open an authenticated shell inside the primary container:
