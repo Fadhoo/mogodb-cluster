@@ -1,9 +1,9 @@
 const result = rs.initiate({
   _id: "rs-replicasetdb",
   members: [
-    { _id: 0, host: "mongo1:27017", priority: 2 },
-    { _id: 1, host: "mongo2:27017", priority: 1 },
-    { _id: 2, host: "mongo3:27017", priority: 1 }
+    { _id: 0, host: "host.docker.internal:27217", priority: 2 },
+    { _id: 1, host: "host.docker.internal:27218", priority: 1 },
+    { _id: 2, host: "host.docker.internal:27219", priority: 1 }
   ]
 });
 
@@ -20,8 +20,8 @@ if (!db.hello().isWritablePrimary) {
 }
 
 db.getSiblingDB("admin").createUser({
-  user: "replica_admin",
-  pwd: "replica_password",
+  user: "twoo_admin",
+  pwd: "replicRviKJ297n242QFS3W",
   roles: [{ role: "root", db: "admin" }]
 });
 

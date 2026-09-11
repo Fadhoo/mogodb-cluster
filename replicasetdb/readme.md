@@ -7,8 +7,8 @@ This folder is a small, dedicated replica set setup extracted from the larger sh
 - `mongo1`, `mongo2`, `mongo3`: a three-member replica set named `rs-replicasetdb`
 - Shared keyfile copied into each MongoDB image at `/data/mongodb-keyfile`
 - Admin user created during first-time initialization:
-  - Username: `replica_admin`
-  - Password: `replica_password`
+  - Username: `twoo_admin`
+  - Password: `replicRviKJ297n242QFS3W`
 
 ## Start
 
@@ -18,42 +18,92 @@ From this folder:
 docker compose up -d --build
 ```
 
-Initialize the replica set and create the admin user:
+The replica set and admin user are initialized automatically by the `mongo-init` one-shot container. Watch its logs:
 
 ```bash
 docker compose logs -f mongo-init
 ```
 
-The `mongo-init` one-shot container initializes the replica set and creates the admin user automatically on first startup. Watch the logs until you see `Replica set initialized and admin user created.`
+Wait until you see:
+
+```text
+Replica set initialized and admin user created.
+```
+
+## How Initialization Works
+
+`docker compose up -d --build` starts four containers:
+
+- `mongo1`, `mongo2`, `mongo3`: the MongoDB replica set members
+- `mongo-init`: a temporary setup container that exits after initialization
+
+The important detail is that `mongo-init` uses:
+
+```yaml
+network_mode: "service:mongo1"
+```
+
+That makes `mongo-init` share `mongo1`'s network namespace, so `127.0.0.1:27017` from inside `mongo-init` is the same MongoDB server running in `mongo1`. This lets the setup script use MongoDB's first-start localhost exception to create the first admin user while keyfile auth is already enabled.
+
+The flow is:
+
+1. `mongo-init` runs `/scripts/init-replica-set.sh`.
+2. `init-replica-set.sh` waits until `mongo1` responds to `ping`.
+3. It runs `/scripts/init-replica-set.js` through `mongosh`.
+4. `init-replica-set.js` calls `rs.initiate(...)` with:
+
+```javascript
+{
+  _id: "rs-replicasetdb",
+  members: [
+    { _id: 0, host: "host.docker.internal:27217", priority: 2 },
+    { _id: 1, host: "host.docker.internal:27218", priority: 1 },
+    { _id: 2, host: "host.docker.internal:27219", priority: 1 }
+  ]
+}
+```
+
+5. The script waits until `mongo1` becomes writable primary.
+6. It creates the root admin user:
+
+```javascript
+db.getSiblingDB("admin").createUser({
+  user: "twoo_admin",
+  pwd: "replicRviKJ297n242QFS3W",
+  roles: [{ role: "root", db: "admin" }]
+});
+```
+
+7. `init-replica-set.sh` writes `/data/db/.replicasetdb-initialized` so future restarts do not recreate the replica set or admin user.
+
+## Connect From Host
+
+From a local app running on your host machine:
+
+```text
+mongodb://twoo_admin:replicRviKJ297n242QFS3W@host.docker.internal:27217,host.docker.internal:27218,host.docker.internal:27219/admin?replicaSet=rs-replicasetdb&authSource=admin
+```
+
+For an application `.env` file:
+
+```env
+MONGODB_URL=mongodb://twoo_admin:replicRviKJ297n242QFS3W@host.docker.internal:27217,host.docker.internal:27218,host.docker.internal:27219/admin?replicaSet=rs-replicasetdb&authSource=admin
+```
+
+Do not use `directConnection=true` for apps that require replica set support. The replica set advertises `host.docker.internal:27217`, `host.docker.internal:27218`, and `host.docker.internal:27219`, so clients can discover all three members.
 
 ## Connect From Docker
 
-From another Docker container on the same Compose network:
+From another Docker container, use the same advertised replica set URI:
 
 ```text
-mongodb://replica_admin:replica_password@mongo1:27017,mongo2:27017,mongo3:27017/admin?replicaSet=rs-replicasetdb&authSource=admin
+mongodb://twoo_admin:replicRviKJ297n242QFS3W@host.docker.internal:27217,host.docker.internal:27218,host.docker.internal:27219/admin?replicaSet=rs-replicasetdb&authSource=admin
 ```
 
 You can also open an authenticated shell inside the primary container:
 
 ```bash
-docker compose exec mongo1 mongosh -u replica_admin -p replica_password --authenticationDatabase admin
-```
-
-## Connect From Host
-
-The replica set advertises Docker service names (`mongo1`, `mongo2`, `mongo3`) so containers can find each other correctly. Host tools that are not on the Docker network cannot usually resolve that topology.
-
-For a local host tool such as MongoDB Compass, connect directly to the primary:
-
-```text
-mongodb://replica_admin:replica_password@127.0.0.1:27217/admin?authSource=admin&directConnection=true
-```
-
-If your application also runs in Docker, prefer the full replica set URI:
-
-```text
-mongodb://replica_admin:replica_password@mongo1:27017,mongo2:27017,mongo3:27017/admin?replicaSet=rs-replicasetdb&authSource=admin
+docker compose exec mongo1 mongosh -u twoo_admin -p replicRviKJ297n242QFS3W --authenticationDatabase admin
 ```
 
 ## Verify
@@ -61,13 +111,13 @@ mongodb://replica_admin:replica_password@mongo1:27017,mongo2:27017,mongo3:27017/
 Check replica set status:
 
 ```bash
-docker compose exec mongo1 mongosh -u replica_admin -p replica_password --authenticationDatabase admin --eval "rs.status()"
+docker compose exec mongo1 mongosh -u twoo_admin -p replicRviKJ297n242QFS3W --authenticationDatabase admin --eval "rs.status()"
 ```
 
 Check which node is primary:
 
 ```bash
-docker compose exec mongo1 mongosh -u replica_admin -p replica_password --authenticationDatabase admin --eval "db.hello().primary"
+docker compose exec mongo1 mongosh -u twoo_admin -p replicRviKJ297n242QFS3W --authenticationDatabase admin --eval "db.hello().primary"
 ```
 
 ## Reset
@@ -79,6 +129,8 @@ docker compose down -v --remove-orphans
 ```
 
 Then start again.
+
+Use reset after changing the replica set member hosts, replica set name, admin username, or admin password. Those values are written during first initialization and will not be recreated while the Docker volumes still exist.
 
 ## Keyfile
 
